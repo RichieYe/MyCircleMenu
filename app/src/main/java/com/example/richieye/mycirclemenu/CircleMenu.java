@@ -162,7 +162,7 @@ public class CircleMenu extends View {
             Paint p2=new Paint();
             p2.setColor(Color.RED);
             p2.setTextSize(50f);
-            canvas.drawText("Test"+(i+1),defaultWidth/2-mRadius,defaultWidth/2-mRadius,p2);
+            canvas.drawText("Test"+(i+1),(defaultWidth-mRadius)/2,(defaultWidth-mRadius)/2,p2);
             canvas.restore();
             mStartAngle+=90;
 
