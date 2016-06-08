@@ -6,6 +6,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RectF;
+import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -45,7 +46,7 @@ public class CircleMenu extends View {
     /**
      * 布局时的开始角度
      */
-    private int mStartAngle = 225;
+    private int mStartAngle = 315;
 
     /**
      * 检测按下到抬起时旋转的角度
@@ -92,14 +93,9 @@ public class CircleMenu extends View {
         mBorderInsideColor= tArray.getColor(R.styleable.circlemenu_border_inside_color,defaultColor);
     }
 
-    @Override
-    protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
-
-    }
 
     @Override
     protected void onDraw(Canvas canvas) {
-        Log.e("CircleMenu",mStartAngle+"");
 
         if(getWidth()==0||getHeight()==0)
         {
@@ -137,27 +133,43 @@ public class CircleMenu extends View {
             mRadius=(defaultWidth<defaultHeight?defaultWidth:defaultHeight)/2;
         }
 
-        Paint p=new Paint();
-        p.setColor(Color.GRAY);
-
-        RectF oval2 = new RectF(0, 0, defaultWidth, defaultWidth);// 设置个新的长方形，扫描测量
-
-        canvas.drawArc(oval2, mStartAngle, 90, true, p);
-        //p.setColor(Color.RED);
-        mStartAngle+=90;
-        canvas.drawArc(oval2, mStartAngle, 90, true, p);
-        //p.setColor(Color.CYAN);
-        mStartAngle+=90;
-        canvas.drawArc(oval2,mStartAngle,90,true,p);
-        //p.setColor(Color.GRAY);
-        mStartAngle+=90;
-        canvas.drawArc(oval2,mStartAngle,90,true,p);
-        // 画弧，第一个参数是RectF：该类是第二个参数是角度的开始，第三个参数是多少度，第四个参数是真的时候画扇形，是假的时候画弧线
-        //p.setColor(Color.RED);
-        //canvas.drawCircle(defaultWidth/2,defaultWidth/2,radius,p);
+        drawSector(canvas);
     }
 
-    private  void drawCircleBorder(Canvas canvas,int radius,int color)
+    private void drawSector(Canvas canvas)
+    {
+        Paint p=new Paint();
+        p.setColor(Color.GRAY);
+        RectF oval2 = new RectF(0, 0, defaultWidth, defaultWidth);// 设置个新的长方形，扫描测量
+
+        Paint p1=new Paint();
+        p1.setColor(Color.BLACK);
+        p1.setStrokeWidth(3.0f);
+        p1.setStyle(Paint.Style.STROKE);
+        for(int i=0;i<4;i++)
+        {
+            mStartAngle=mStartAngle%360;
+
+            if(i==3)
+            {
+                p.setColor(Color.CYAN);
+                p1.setColor(Color.RED);
+            }
+            canvas.drawArc(oval2, mStartAngle, 90, true, p);
+            canvas.drawArc(oval2, mStartAngle, 90, true, p1);
+            canvas.save();
+            canvas.rotate(mStartAngle,defaultWidth/2,defaultWidth/2);
+            Paint p2=new Paint();
+            p2.setColor(Color.RED);
+            p2.setTextSize(50f);
+            canvas.drawText("Test"+(i+1),defaultWidth/2-mRadius,defaultWidth/2-mRadius,p2);
+            canvas.restore();
+            mStartAngle+=90;
+
+        }
+    }
+
+    private  void drawCircleBorder(Canvas canvas, int radius, int color)
     {
         Paint paint=new Paint();
 
@@ -217,38 +229,19 @@ public class CircleMenu extends View {
         }
     }
 
-    private AutoFlingRunnable mFlingRunnable;
-
     @Override
     public boolean dispatchTouchEvent(MotionEvent event)
     {
-
         float x = event.getX();
         float y = event.getY();
-
-        Log.e("TAG", "x = " + x + " , y = " + y);
 
         switch (event.getAction())
         {
             case MotionEvent.ACTION_DOWN:
-
-                mLastX = x;
-                mLastY = y;
-                mDownTime = System.currentTimeMillis();
-                mTmpAngle = 0;
-
-                // 如果当前已经在快速滚动
-                if (isFling)
-                {
-                    // 移除快速滚动的回调
-                    removeCallbacks(mFlingRunnable);
-                    isFling = false;
-                    return true;
-                }
-
+                mLastX=x;
+                mLastY=y;
                 break;
             case MotionEvent.ACTION_MOVE:
-
                 /**
                  * 获得开始的角度
                  */
@@ -257,8 +250,6 @@ public class CircleMenu extends View {
                  * 获得当前的角度
                  */
                 float end = getAngle(x, y);
-
-                // Log.e("TAG", "start = " + start + " , end =" + end);
                 // 如果是一、四象限，则直接end-start，角度值都是正值
                 if (getQuadrant(x, y) == 1 || getQuadrant(x, y) == 4)
                 {
@@ -270,77 +261,16 @@ public class CircleMenu extends View {
                     mStartAngle += start - end;
                     mTmpAngle += start - end;
                 }
+                mStartAngle=mStartAngle%360;
                 // 重新布局
-                //requestLayout();
                 invalidate();
                 mLastX = x;
                 mLastY = y;
-
-                break;
-            case MotionEvent.ACTION_UP:
-
-                // 计算，每秒移动的角度
-                float anglePerSecond = mTmpAngle * 1000
-                        / (System.currentTimeMillis() - mDownTime);
-
-                // Log.e("TAG", anglePrMillionSecond + " , mTmpAngel = " +
-                // mTmpAngle);
-
-                // 如果达到该值认为是快速移动
-                if (Math.abs(anglePerSecond) > mFlingableValue && !isFling)
-                {
-                    // post一个任务，去自动滚动
-                    post(mFlingRunnable = new AutoFlingRunnable(anglePerSecond));
-
-                    return true;
-                }
-
-                // 如果当前旋转角度超过NOCLICK_VALUE屏蔽点击
-                if (Math.abs(mTmpAngle) > NOCLICK_VALUE)
-                {
-                    return true;
-                }
+                Log.e("CircleMenu1",mStartAngle+"    "+start+"     "+end);
 
                 break;
         }
 
         return super.dispatchTouchEvent(event);
     }
-
-
-    /**
-     * 自动滚动的任务
-     *
-     * @author zhy
-     *
-     */
-    private class AutoFlingRunnable implements Runnable
-    {
-
-        private float angelPerSecond;
-
-        public AutoFlingRunnable(float velocity)
-        {
-            this.angelPerSecond = velocity;
-        }
-
-        public void run()
-        {
-            // 如果小于20,则停止
-            if ((int) Math.abs(angelPerSecond) < 20)
-            {
-                isFling = false;
-                return;
-            }
-            isFling = true;
-            // 不断改变mStartAngle，让其滚动，/30为了避免滚动太快
-            mStartAngle += (angelPerSecond / 30);
-            // 逐渐减小这个值
-            angelPerSecond /= 1.0666F;
-            postDelayed(this, 30);
-            // 重新布局
-            requestLayout();
-        }
-    }
-
 }
